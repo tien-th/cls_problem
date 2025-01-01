@@ -12,16 +12,19 @@ from PIL import Image
 import pandas as pd
 from torch.utils.tensorboard import SummaryWriter  # Import TensorBoard
 
+from model.ResNetFM import ResNetFM as Model
+
 # Configuration
 TRAIN_INDICATOR_CSV = "split/train.csv"
 VAL_INDICATOR_CSV = "split/val.csv"
 num_classes = 4
 batch_size = 32
 epochs = 50
-learning_rate = 0.0001
-k_folds = 5
-model_name = "vit_small_patch32_224.augreg_in21k_ft_in1k"
-log_dir = "runs/experiment"  # Directory for TensorBoard logs
+# learning_rate = 0.0001
+learning_rate = 3e-5
+momentum = 0.9
+weight_decay = 1e-4
+log_dir = "runs/resnetFM"  # Directory for TensorBoard logs
 
 os.makedirs(log_dir, exist_ok=True)  # Create the log directory
 
@@ -133,11 +136,6 @@ def main():
     # Initialize TensorBoard SummaryWriter
     writer = SummaryWriter(log_dir=log_dir)
 
-    # for fold, (train_idx, val_idx) in enumerate(kfold.split(data)):
-    #     print(f"\nFold {fold + 1}/{k_folds}")
-
-        # Split data
-
     train_dataset = CustomDataset(train_data, train_labels, train_transforms)
     val_dataset = CustomDataset(val_data, val_labels, train_transforms)
 
@@ -145,10 +143,14 @@ def main():
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True)
 
     # Model setup
-    model = timm.create_model(model_name, pretrained=True, num_classes=num_classes)
+    model = Model(num_classes=num_classes)
     model = model.to(device)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
+    optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+    
+    # Initialize the learning rate scheduler
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=3, verbose=True)
+
 
     # Training and validation
     for epoch in range(epochs):
@@ -169,12 +171,16 @@ def main():
         writer.add_scalar(f'Val_Accuracy', val_acc, global_step)
         writer.add_scalar(f'Val_F1', val_f1, global_step)
 
+        scheduler.step(val_f1)
+        current_lr = optimizer.param_groups[0]['lr']
+        writer.add_scalar('Learning_Rate', current_lr, epoch)
+        print(f"Current Learning Rate: {current_lr}")
         # Save the model if validation F1 improves
         if val_f1 > best_f1:
             best_f1 = val_f1
             print("Saving best model based on F1 score...")
             os.makedirs("models", exist_ok=True)
-            torch.save(model.state_dict(), f"models/best_model_{global_step + 1}.pth")
+            torch.save(model.state_dict(), f"{log_dir}/best_model_{global_step + 1}.pth")
 
     print(f"Best F1 Score: {best_f1:.4f}")
     writer.close()  # Close the TensorBoard writer

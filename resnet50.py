@@ -20,8 +20,10 @@ batch_size = 32
 epochs = 50
 learning_rate = 0.0001
 k_folds = 5
-model_name = "vit_small_patch32_224.augreg_in21k_ft_in1k"
-log_dir = "runs/experiment"  # Directory for TensorBoard logs
+# model_name = "vit_small_patch32_224.augreg_in21k_ft_in1k"
+model_name = "resnet50"
+# log_dir = "runs/vit"  # Directory for TensorBoard logs
+log_dir = "runs/resnet50"  # Directory for TensorBoard logs
 
 os.makedirs(log_dir, exist_ok=True)  # Create the log directory
 
@@ -174,7 +176,7 @@ def main():
             best_f1 = val_f1
             print("Saving best model based on F1 score...")
             os.makedirs("models", exist_ok=True)
-            torch.save(model.state_dict(), f"models/best_model_{global_step + 1}.pth")
+            torch.save(model.state_dict(), f"{log_dir}/best_model_{global_step + 1}.pth")
 
     print(f"Best F1 Score: {best_f1:.4f}")
     writer.close()  # Close the TensorBoard writer
