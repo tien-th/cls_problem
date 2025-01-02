@@ -4,3 +4,5 @@ train_data/
 isbi2025-ps3c*
 runs/
 models/
+resized_train_data.zip
+wandb/

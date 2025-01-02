@@ -4,19 +4,18 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, confusion_matrix
 from torchvision import transforms
 from tqdm import tqdm
 from PIL import Image
 import pandas as pd
 import wandb  # Import Weights & Biases
-
+import matplotlib.pyplot as plt
+import seaborn as sns
 import argparse  # For command-line arguments
 
-from losses.Focal import FocalLoss
-from losses.Focal_KD import Focal_KD as Loss 
-# from model.ResNetFM import ResNetFM as Model
-from model.ResNetKdFM import ResNetKdFM as Model
+from losses.Focal import FocalLoss 
+from model.ResNetFM import ResNetFM as Model
 
 
 # Configuration
@@ -29,7 +28,7 @@ epochs = 50
 learning_rate = 3e-5
 momentum = 0.9
 weight_decay = 1e-4
-run_name = "resnetFM_focalKD"  # Name of the W&B run
+run_name = "resnetFM_focal_test_env"  # Name of the W&B run
 
 # ------------------------------
 # 1. Define Dataset and Utility Functions
@@ -86,17 +85,13 @@ def train(train_loader, model, criterion, optimizer, device):
         labels = labels.to(device)
 
         optimizer.zero_grad()
-
         outputs = model(images)
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
 
         running_loss += loss.item() * images.size(0)
-        if isinstance(outputs, tuple):
-            _, predicted = torch.max(outputs[0], 1)
-        else:
-            _, predicted = torch.max(outputs, 1)
+        _, predicted = torch.max(outputs, 1)
         total += labels.size(0)
         correct += (predicted == labels).sum().item()
 
@@ -202,8 +197,7 @@ def main():
     # ------------------------------
     model = Model(num_classes=num_classes)
     model = model.to(device)
-    criterion = Loss()
-    valid_critertion = FocalLoss()
+    criterion = FocalLoss()
     optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
     
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=3, verbose=True)
@@ -223,8 +217,8 @@ def main():
             "learning_rate": learning_rate,
             "momentum": momentum,
             "weight_decay": weight_decay,
-            "architecture": str(model)[:-2],
-            "loss_function": str(criterion)[:-2],
+            "architecture": "ResNetFM",
+            "loss_function": "FocalLoss"
         },
         name= run_name  # Name of the run
     )
@@ -255,7 +249,7 @@ def main():
         print(f"Epoch {epoch}/{epochs}")
 
         train_loss, train_acc, train_f1 = train(train_loader, model, criterion, optimizer, device)
-        val_loss, val_acc, val_f1, val_labels_list, val_preds_list = validate(val_loader, model, valid_critertion, device)
+        val_loss, val_acc, val_f1, val_labels_list, val_preds_list = validate(val_loader, model, criterion, device)
 
         print(f"Train Loss: {train_loss:.4f}, Train Accuracy: {train_acc:.4f}, Train F1: {train_f1:.4f}")
         print(f"Val Loss: {val_loss:.4f}, Val Accuracy: {val_acc:.4f}, Val F1: {val_f1:.4f}")

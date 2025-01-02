@@ -18,10 +18,18 @@ class ResNetFM(nn.Module):
         
     def forward(self, x):
         x_resnet = self.resnet(x)
-        fm_features = self.fm_encoder(x)
+        with torch.no_grad():
+            fm_features = self.fm_encoder(x)
         
         x = torch.cat([x_resnet, fm_features], dim=1)
         x = self.classifier(x)
         return x 
     
+    def infer(self, x):
+        with torch.no_grad():
+            x_resnet = self.resnet(x)
+            fm_features = self.fm_encoder(x)
+            x = torch.cat([x_resnet, fm_features], dim=1)
+            x = self.classifier(x)
+        return x 
         
