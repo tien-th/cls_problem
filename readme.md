@@ -32,7 +32,7 @@ VAL_INDICATOR_CSV = "split/val1.csv"
 
 Run the script:
 ```bash
-python train.py
+CUDA_VISIBLE_DEVICES=x python train.py
 ```
 
 ## 4. If No Errors Occur
