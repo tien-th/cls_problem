@@ -42,6 +42,11 @@ Update the configuration in `train.py` as follows:
 TRAIN_INDICATOR_CSV = "split/train.csv"
 VAL_INDICATOR_CSV = "split/val.csv"
 ```
+Rerun the full training script: 
+
+```bash
+CUDA_VISIBLE_DEVICES=x python train.py
+```
 
 ## 5. Relax
 
